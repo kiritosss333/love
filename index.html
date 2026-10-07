@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#faf6f3">
+  <title>Для тебя</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <span class="ambient-dot"></span>
+    <span class="ambient-dot"></span>
+    <span class="ambient-dot"></span>
+    <span class="ambient-dot"></span>
+    <span class="ambient-dot"></span>
+  </div>
+
+  <main id="app">
+    <!-- Scene 1 -->
+    <section class="scene scene--active" data-scene="start" aria-label="Начало">
+      <div class="scene-inner fade-in">
+        <p class="lead" id="start-lead">Ветулик, я хочу тебя кое о чём спросить…</p>
+        <button type="button" class="btn btn--primary" id="btn-start">Я тебя люблю</button>
+      </div>
+    </section>
+
+    <!-- Scene 2 -->
+    <section class="scene" data-scene="question" aria-label="Вопрос">
+      <div class="scene-inner">
+        <p class="lead fade-in" id="question-lead">А ты меня?</p>
+        <p class="subhint fade-in" id="question-hint" hidden></p>
+        <div class="btn-row" id="question-buttons">
+          <button type="button" class="btn btn--primary" id="btn-yes">Да</button>
+          <button type="button" class="btn btn--ghost" id="btn-no">Нет</button>
+        </div>
+        <p class="fallback-msg fade-in" id="no-unavailable" hidden>
+          Похоже, вариант «Нет» сегодня недоступен.
+        </p>
+        <button type="button" class="btn btn--primary fade-in" id="btn-fine-yes" hidden>
+          Ладно… тогда да ❤️
+        </button>
+      </div>
+    </section>
+
+    <!-- Scene 3 — Heart celebration -->
+    <section class="scene" data-scene="celebration" aria-label="Финал">
+      <div class="celebration-backdrop" id="celebration-backdrop"></div>
+      <canvas class="heart-canvas" id="heart-canvas" aria-hidden="true"></canvas>
+      <div class="heart-css-wrap" id="heart-css-wrap" aria-hidden="true">
+        <div class="heart-glow"></div>
+        <div class="heart-shape"></div>
+      </div>
+      <div class="scene-inner celebration-copy">
+        <p class="lead celebration-text" id="celebration-title" hidden>Я так и знал ❤️</p>
+        <p class="body-text celebration-text" id="celebration-sub" hidden>Ты только что сделала меня очень счастливым.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
