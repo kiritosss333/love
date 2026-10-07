@@ -9,7 +9,7 @@ const CONFIG = {
 
   texts: {
     pageTitle: "Для тебя",
-    startLead: "я хочу тебя кое о чём спросить…",
+    startLead: " ",
     startButton: "Я вот тебя люблю",
     questionLead: "А ты меня?",
     yesButton: "Да",
