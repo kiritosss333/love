@@ -1,428 +1,364 @@
-/**
- * ═══════════════════════════════════════════════════════════════
- * CONFIG — personalize here
- * ═══════════════════════════════════════════════════════════════
- */
-const CONFIG = {
-  /** Prepended to startLead, e.g. "Ветулик, я хочу…" */
-  herName: "Ветулик",
+const MAX_NO_RUNS = 5;
 
-  texts: {
-    pageTitle: "Для тебя",
-    startLead: " ",
-    startButton: "Я вот тебя люблю",
-    questionLead: "А ты меня?",
-    yesButton: "Да",
-    noButton: "Нет",
-    firstNoResponse: "Ты уверена?",
-    noUnavailable: "Похоже, вариант «Нет» сегодня недоступен.",
-    fineYesButton: "Ладно… тогда да ❤️",
-    celebrationTitle: "Я так и знал ❤️",
-    celebrationSub: "Ты только что сделала меня очень счастливым.",
+const questions = [
+  {
+    title: "Хотел бы сходить со мной на свидание?",
+    choices: ["Да", "Конечно", "С удовольствием", "Нет"]
   },
-
-  /** Shown under the headline after each dodge (from 2nd attempt onward) */
-  noAttemptMessages: [
-    "Попробуй ещё раз.",
-    "Мне кажется, это неправильный ответ.",
-    "Ты точно уверена?",
-    "Нет-нет, давай ещё раз подумаем.",
-    "Такой вариант сегодня недоступен.",
-  ],
-
-  /** After this many dodge attempts, "No" disappears */
-  maxNoAttempts: 6,
-
-  colors: {
-    bg: "#faf6f3",
-    text: "#3d3235",
-    textMuted: "#8a7579",
-    accent: "#e8a4a8",
-    heart: "#e89298",
-    heartGlow: "rgba(232, 146, 152, 0.55)",
+  {
+    title: "Какой мой любимый цвет?",
+    choices: ["Синий", "Чёрный", "Зелёный", "Розовый", "Не знаю"]
   },
-
-  timing: {
-    sceneTransitionMs: 850,
-    fadeMs: 700,
-    heartTextDelayMs: 3200,
-    celebrationSubDelayMs: 400,
-    dodgeTransitionMs: 450,
-    /** Desktop: px distance from cursor to trigger dodge */
-    dodgeRadiusDesktop: 90,
-    /** Mobile: dodge on touchstart before click */
-    mobileDodgePadding: 16,
+  {
+    title: "Что бы ты хотел делать на нашем свидании?",
+    choices: ["Погулять в парке", "Сходить в кино", "Посидеть в кафе", "Просто поболтать"],
+    custom: "Свой вариант"
   },
-};
-
-/** Apply CONFIG colors to CSS variables */
-function applyTheme() {
-  const root = document.documentElement;
-  const c = CONFIG.colors;
-  root.style.setProperty("--color-bg", c.bg);
-  root.style.setProperty("--color-text", c.text);
-  root.style.setProperty("--color-text-muted", c.textMuted);
-  root.style.setProperty("--color-accent", c.accent);
-  root.style.setProperty("--color-heart", c.heart);
-  root.style.setProperty("--color-heart-glow", c.heartGlow);
-  root.style.setProperty("--scene-duration", `${CONFIG.timing.sceneTransitionMs}ms`);
-  root.style.setProperty("--fade-duration", `${CONFIG.timing.fadeMs}ms`);
-}
-
-function withName(text) {
-  const name = CONFIG.herName.trim();
-  if (!name) return text;
-  return `${name}, ${text}`;
-}
-
-function personalizeQuestion(text) {
-  const name = CONFIG.herName.trim();
-  if (!name) return text;
-  return `${name}, ${text.charAt(0).toLowerCase()}${text.slice(1)}`;
-}
-
-// ─── Scene manager ───────────────────────────────────────────
-const scenes = {
-  start: document.querySelector('[data-scene="start"]'),
-  question: document.querySelector('[data-scene="question"]'),
-  celebration: document.querySelector('[data-scene="celebration"]'),
-};
-
-let activeScene = "start";
-let transitionLock = false;
-
-function goToScene(name) {
-  if (transitionLock || name === activeScene) return;
-  transitionLock = true;
-
-  const current = scenes[activeScene];
-  const next = scenes[name];
-  const duration = CONFIG.timing.sceneTransitionMs;
-
-  if (name === "celebration") {
-    backdrop.classList.add("is-dim");
+  {
+    title: "Насколько ты меня ценишь от 1 до 10?",
+    scale: true
   }
+];
 
-  current.classList.add("scene--leaving");
-  current.classList.remove("scene--active");
+const views = {
+  home: document.getElementById("view-home"),
+  quiz: document.getElementById("view-quiz"),
+  final: document.getElementById("view-final")
+};
 
-  setTimeout(() => {
-    current.classList.remove("scene--leaving");
-    next.classList.add("scene--active");
-    activeScene = name;
-    transitionLock = false;
-
-    if (name === "celebration") {
-      runCelebration();
-    }
-  }, duration);
-}
-
-// ─── DOM refs ────────────────────────────────────────────────
-const btnStart = document.getElementById("btn-start");
 const btnYes = document.getElementById("btn-yes");
 const btnNo = document.getElementById("btn-no");
-const btnFineYes = document.getElementById("btn-fine-yes");
-const questionLead = document.getElementById("question-lead");
-const questionHint = document.getElementById("question-hint");
-const questionButtons = document.getElementById("question-buttons");
-const noUnavailable = document.getElementById("no-unavailable");
-const startLead = document.getElementById("start-lead");
+const qTitle = document.getElementById("q-title");
+const qBody = document.getElementById("q-body");
+const progress = document.getElementById("progress");
+const screamer = document.getElementById("screamer");
+const canvas = document.getElementById("confetti");
+const ctx = canvas.getContext("2d");
 
-// ─── Scene 1 ─────────────────────────────────────────────────
-btnStart.addEventListener("click", () => goToScene("question"));
+const screenEl = document.querySelector(".screen");
+screenEl.classList.add("is-home");
 
-// ─── Scene 2: Yes ────────────────────────────────────────────
-btnYes.addEventListener("click", () => {
-  teardownNoDodge();
-  goToScene("celebration");
-});
+let step = 0;
+let noRuns = 0;
+let noStopped = false;
+let lastRun = 0;
+let audioCtx = null;
+let confettiBits = [];
+let confettiOn = false;
+let heartsTimer = null;
 
-btnFineYes.addEventListener("click", () => {
-  goToScene("celebration");
-});
+function show(name) {
+  screenEl.classList.toggle("is-home", name === "home");
+  Object.entries(views).forEach(([key, el]) => {
+    const on = key === name;
+    el.classList.toggle("is-on", on);
+    el.hidden = !on;
+  });
+}
 
-// ─── Scene 2: No dodge ───────────────────────────────────────
-let noAttempts = 0;
-let noDodgeActive = false;
-let dodgeRaf = null;
-const pointer = { x: -9999, y: -9999 };
+/* ---------- Sound / screamer ---------- */
 
-function getRandomPosition(btnRect) {
-  const pad = CONFIG.timing.mobileDodgePadding;
-  const w = btnRect.width;
-  const h = btnRect.height;
-  const maxX = window.innerWidth - w - pad;
-  const maxY = window.innerHeight - h - pad;
-  const minX = pad;
-  const minY = pad;
+function unlockAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+}
+
+function playScream() {
+  unlockAudio();
+  const t = audioCtx.currentTime;
+
+  const noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 1.4, audioCtx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 0.35);
+  }
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.setValueAtTime(0.0001, t);
+  noiseGain.gain.exponentialRampToValueAtTime(0.9, t + 0.04);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.setValueAtTime(1200, t);
+  bp.frequency.exponentialRampToValueAtTime(2800, t + 0.2);
+  noise.connect(bp).connect(noiseGain).connect(audioCtx.destination);
+  noise.start(t);
+
+  [880, 1320, 1760].forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = i ? "sawtooth" : "square";
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 1.15);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.28, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    osc.connect(g).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 1.25);
+  });
+}
+
+function triggerScreamer() {
+  playScream();
+  screamer.classList.add("is-on");
+  setTimeout(() => screamer.classList.remove("is-on"), 1600);
+}
+
+/* ---------- Runaway "No" button ---------- */
+
+function placeNoRandom() {
+  // Move to <body>: .screen has backdrop-filter, which breaks position:fixed for children
+  if (btnNo.parentElement !== document.body) {
+    document.body.appendChild(btnNo);
+  }
+  // Keep the button inside the card (.screen)
+  const pad = 16;
+  const rect = btnNo.getBoundingClientRect();
+  const box = screenEl.getBoundingClientRect();
+  const minX = box.left + pad;
+  const maxX = box.right - rect.width - pad;
+  const minY = box.top + pad;
+  const maxY = box.bottom - rect.height - pad;
   const x = minX + Math.random() * Math.max(0, maxX - minX);
   const y = minY + Math.random() * Math.max(0, maxY - minY);
-  return { x, y };
+  btnNo.style.position = "fixed";
+  btnNo.style.left = x + "px";
+  btnNo.style.top = y + "px";
+  btnNo.style.zIndex = "20";
+  btnNo.style.margin = "0";
 }
 
-function moveNoButton(immediate) {
-  const rect = btnNo.getBoundingClientRect();
-  const { x, y } = getRandomPosition(rect);
-  btnNo.style.left = `${x}px`;
-  btnNo.style.top = `${y}px`;
-  if (immediate) {
-    btnNo.style.transition = "none";
-    requestAnimationFrame(() => {
-      btnNo.style.transition = "";
-    });
+function runAway() {
+  if (noStopped) return;
+  const now = performance.now();
+  if (now - lastRun < 260) return;
+  lastRun = now;
+  noRuns += 1;
+  placeNoRandom();
+  if (noRuns >= MAX_NO_RUNS) {
+    noStopped = true;
+    btnNo.classList.add("is-fixed");
   }
 }
 
-function registerNoAttempt() {
-  noAttempts += 1;
-
-  if (noAttempts === 1) {
-    questionLead.textContent = CONFIG.texts.firstNoResponse;
-    questionHint.hidden = true;
-  } else {
-    const messages = CONFIG.noAttemptMessages;
-    const idx = Math.min(noAttempts - 2, messages.length - 1);
-    questionHint.textContent = messages[idx];
-    questionHint.hidden = false;
-    questionHint.classList.remove("fade-in");
-    void questionHint.offsetWidth;
-    questionHint.classList.add("fade-in");
-  }
-
-  if (noAttempts >= CONFIG.maxNoAttempts) {
-    finishNoGame();
-  }
-}
-
-function finishNoGame() {
-  teardownNoDodge();
-  btnNo.style.opacity = "0";
-  btnNo.style.pointerEvents = "none";
-  setTimeout(() => {
-    btnNo.hidden = true;
-    questionButtons.hidden = true;
-    questionLead.hidden = true;
-    questionHint.hidden = true;
-    noUnavailable.hidden = false;
-    noUnavailable.classList.add("fade-in");
-    btnFineYes.hidden = false;
-    btnFineYes.classList.add("fade-in");
-  }, 400);
-}
-
-function enableNoDodge() {
-  if (noDodgeActive) return;
-  noDodgeActive = true;
-  btnNo.classList.add("btn--dodge");
-  const rowRect = btnNo.getBoundingClientRect();
-  btnNo.style.left = `${rowRect.left}px`;
-  btnNo.style.top = `${rowRect.top}px`;
-  document.body.appendChild(btnNo);
-}
-
-function teardownNoDodge() {
-  noDodgeActive = false;
-  if (dodgeRaf) cancelAnimationFrame(dodgeRaf);
-  dodgeRaf = null;
-  window.removeEventListener("mousemove", onMouseMove);
-  window.removeEventListener("touchstart", onTouchNearNo, { capture: true });
-  btnNo.removeEventListener("click", onNoClick);
-  btnNo.classList.remove("btn--dodge");
-  btnNo.style.left = "";
-  btnNo.style.top = "";
-  btnNo.style.opacity = "";
-  btnNo.style.pointerEvents = "";
-}
-
-function distanceToButton(px, py) {
+function nearNo(x, y) {
   const r = btnNo.getBoundingClientRect();
   const cx = r.left + r.width / 2;
   const cy = r.top + r.height / 2;
-  return Math.hypot(px - cx, py - cy);
+  return Math.hypot(x - cx, y - cy) < 88;
 }
 
-let lastDodgeTime = 0;
-const DODGE_COOLDOWN = 280;
-
-function tryDodge(source) {
-  const now = performance.now();
-  if (now - lastDodgeTime < DODGE_COOLDOWN) return;
-  lastDodgeTime = now;
-  moveNoButton(false);
-  registerNoAttempt();
+function resetNoButton() {
+  noRuns = 0;
+  noStopped = false;
+  btnNo.classList.remove("is-fixed");
+  btnNo.style.position = "";
+  btnNo.style.left = "";
+  btnNo.style.top = "";
+  btnNo.style.zIndex = "";
+  btnNo.style.margin = "";
+  document.getElementById("home-actions").appendChild(btnNo);
 }
 
-function onMouseMove(e) {
-  if (!noDodgeActive || noAttempts >= CONFIG.maxNoAttempts) return;
-  pointer.x = e.clientX;
-  pointer.y = e.clientY;
-  if (distanceToButton(pointer.x, pointer.y) < CONFIG.timing.dodgeRadiusDesktop) {
-    tryDodge("mouse");
-  }
-}
-
-function onTouchNearNo(e) {
-  if (!noDodgeActive || noAttempts >= CONFIG.maxNoAttempts) return;
-  const touch = e.touches[0];
-  if (!touch) return;
-  const r = btnNo.getBoundingClientRect();
-  const expanded = CONFIG.timing.mobileDodgePadding;
-  const inside =
-    touch.clientX >= r.left - expanded &&
-    touch.clientX <= r.right + expanded &&
-    touch.clientY >= r.top - expanded &&
-    touch.clientY <= r.bottom + expanded;
-  if (inside) {
-    e.preventDefault();
-    tryDodge("touch");
-  }
-}
-
-function onNoClick(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  tryDodge("click");
-}
+btnYes.addEventListener("click", () => {
+  unlockAudio();
+  resetNoButton();
+  step = 0;
+  show("quiz");
+  renderQuestion();
+});
 
 btnNo.addEventListener("click", (e) => {
   e.preventDefault();
-  if (noAttempts === 0) {
-    enableNoDodge();
-    window.addEventListener("mousemove", onMouseMove, { passive: true });
-    window.addEventListener("touchstart", onTouchNearNo, { capture: true, passive: false });
+  unlockAudio();
+  if (noStopped) {
+    triggerScreamer();
+    return;
   }
-  tryDodge("click");
+  runAway();
 });
 
-// ─── Celebration: canvas particles + CSS heart ───────────────
-const canvas = document.getElementById("heart-canvas");
-const ctx = canvas.getContext("2d");
-const backdrop = document.getElementById("celebration-backdrop");
-const heartWrap = document.getElementById("heart-css-wrap");
-const titleEl = document.getElementById("celebration-title");
-const subEl = document.getElementById("celebration-sub");
+document.addEventListener("mousemove", (e) => {
+  if (noStopped || !views.home.classList.contains("is-on")) return;
+  if (nearNo(e.clientX, e.clientY)) runAway();
+});
 
-let animFrame = null;
-let particles = [];
+document.addEventListener("touchstart", (e) => {
+  if (noStopped || !views.home.classList.contains("is-on") || !e.touches[0]) return;
+  const t = e.touches[0];
+  if (nearNo(t.clientX, t.clientY)) {
+    e.preventDefault();
+    runAway();
+  }
+}, { passive: false });
 
-function resizeCanvas() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = window.innerWidth * dpr;
-  canvas.height = window.innerHeight * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
+/* ---------- Questionnaire ---------- */
 
-function createParticle(x, y, type) {
-  const angle = Math.random() * Math.PI * 2;
-  const speed = 0.4 + Math.random() * 1.8;
-  return {
-    x,
-    y,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed - 0.5,
-    size: type === "mini-heart" ? 4 + Math.random() * 4 : 2 + Math.random() * 3,
-    life: 1,
-    decay: 0.008 + Math.random() * 0.012,
-    type,
-    wobble: Math.random() * Math.PI * 2,
-  };
-}
+function renderQuestion() {
+  const q = questions[step];
+  qTitle.textContent = q.title;
+  progress.innerHTML = questions
+    .map((_, i) => `<span class="dot${i === step ? " is-on" : ""}"></span>`)
+    .join("");
 
-function drawMiniHeart(x, y, size, alpha) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = CONFIG.colors.heart;
-  ctx.translate(x, y);
-  ctx.scale(size / 10, size / 10);
-  ctx.beginPath();
-  ctx.moveTo(0, 3);
-  ctx.bezierCurveTo(0, 0, -5, 0, -5, 3);
-  ctx.bezierCurveTo(-5, 6, 0, 9, 0, 12);
-  ctx.bezierCurveTo(0, 9, 5, 6, 5, 3);
-  ctx.bezierCurveTo(5, 0, 0, 0, 0, 3);
-  ctx.fill();
-  ctx.restore();
-}
-
-function tickParticles() {
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight * 0.42;
-  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-
-  if (particles.length < 80 && Math.random() < 0.35) {
-    particles.push(createParticle(cx, cy, Math.random() > 0.5 ? "mini-heart" : "dot"));
+  if (q.scale) {
+    qBody.innerHTML = `<div class="scale" id="scale"></div>`;
+    const scale = document.getElementById("scale");
+    for (let n = 1; n <= 10; n++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn choice--soft";
+      b.textContent = String(n);
+      b.addEventListener("click", () => {
+        rating = n;
+        nextQuestion();
+      });
+      scale.appendChild(b);
+    }
+    return;
   }
 
-  particles = particles.filter((p) => {
-    p.wobble += 0.05;
-    p.x += p.vx + Math.sin(p.wobble) * 0.15;
-    p.y += p.vy;
-    p.vy += 0.015;
-    p.life -= p.decay;
-
-    if (p.life <= 0) return false;
-
-    if (p.type === "mini-heart") {
-      drawMiniHeart(p.x, p.y, p.size, p.life * 0.85);
-    } else {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = CONFIG.colors.accent;
-      ctx.globalAlpha = p.life * 0.5;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    return true;
+  const stack = document.createElement("div");
+  stack.className = "btn-stack";
+  q.choices.forEach((label) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn choice";
+    b.textContent = label;
+    b.addEventListener("click", nextQuestion);
+    stack.appendChild(b);
   });
 
-  animFrame = requestAnimationFrame(tickParticles);
-}
-
-function runCelebration() {
-  resizeCanvas();
-  particles = [];
-  titleEl.classList.remove("is-shown");
-  subEl.classList.remove("is-shown");
-  heartWrap.classList.remove("is-visible");
-  void heartWrap.offsetWidth;
-  backdrop.classList.add("is-dim");
-  heartWrap.classList.add("is-visible");
-  titleEl.hidden = false;
-  subEl.hidden = false;
-
-  if (animFrame) cancelAnimationFrame(animFrame);
-  tickParticles();
-
-  setTimeout(() => {
-    titleEl.classList.add("is-shown");
-  }, CONFIG.timing.heartTextDelayMs);
-
-  setTimeout(() => {
-    subEl.classList.add("is-shown");
-  }, CONFIG.timing.heartTextDelayMs + CONFIG.timing.celebrationSubDelayMs);
-}
-
-window.addEventListener("resize", () => {
-  if (activeScene === "celebration") resizeCanvas();
-  if (noDodgeActive && btnNo.classList.contains("btn--dodge")) {
-    moveNoButton(true);
+  if (q.custom) {
+    const wrap = document.createElement("div");
+    wrap.className = "custom";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = q.custom;
+    input.maxLength = 80;
+    const send = document.createElement("button");
+    send.type = "button";
+    send.className = "btn";
+    send.textContent = "Готово";
+    send.addEventListener("click", () => {
+      if (input.value.trim()) nextQuestion();
+      else input.focus();
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && input.value.trim()) nextQuestion();
+    });
+    wrap.append(input, send);
+    stack.appendChild(wrap);
   }
+
+  qBody.innerHTML = "";
+  qBody.appendChild(stack);
+}
+
+let rating = 10;
+
+// Good ending for 10/10, rude ending for anything lower
+function setFinalText() {
+  const title = views.final.querySelector("h1");
+  const hint = views.final.querySelector(".hint");
+  if (rating < 10) {
+    title.textContent = "Ты мудак, Ярик 😤";
+    hint.textContent = "Меньше 10? Подумай над своим поведением";
+  } else {
+    title.textContent = "Спасибо, Ярик! Ты самый лучший 💙";
+    hint.textContent = "Мне очень повезло, что ты есть";
+  }
+}
+
+function nextQuestion() {
+  step += 1;
+  if (step >= questions.length) {
+    setFinalText();
+    show("final");
+    startParty();
+    return;
+  }
+  views.quiz.classList.remove("is-on");
+  void views.quiz.offsetWidth; // restart animation
+  views.quiz.classList.add("is-on");
+  renderQuestion();
+}
+
+/* ---------- Confetti + hearts ---------- */
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function startParty() {
+  resizeCanvas();
+  confettiBits = Array.from({ length: 90 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -canvas.height,
+    r: 4 + Math.random() * 6,
+    vy: 1.4 + Math.random() * 2.4,
+    vx: -1 + Math.random() * 2,
+    rot: Math.random() * 360,
+    vr: -4 + Math.random() * 8,
+    color: ["#ffffff", "#9fd0ff", "#6b7cff", "#ff8ab8", "#ffe28a"][Math.floor(Math.random() * 5)]
+  }));
+  confettiOn = true;
+  tickParty();
+  spawnHearts();
+}
+
+function tickParty() {
+  if (!confettiOn) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  confettiBits.forEach((p) => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.rot += p.vr;
+    if (p.y > canvas.height + 20) p.y = -10;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate((p.rot * Math.PI) / 180);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 1.4);
+    ctx.restore();
+  });
+  requestAnimationFrame(tickParty);
+}
+
+function spawnHearts() {
+  clearInterval(heartsTimer);
+  heartsTimer = setInterval(() => {
+    if (!views.final.classList.contains("is-on")) return;
+    const h = document.createElement("div");
+    h.className = "heart-float";
+    h.textContent = ["💙", "💖", "✨"][Math.floor(Math.random() * 3)];
+    h.style.left = 8 + Math.random() * 84 + "vw";
+    h.style.bottom = "-20px";
+    document.body.appendChild(h);
+    setTimeout(() => h.remove(), 3600);
+  }, 420);
+}
+
+function stopParty() {
+  confettiOn = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  clearInterval(heartsTimer);
+  document.querySelectorAll(".heart-float").forEach((n) => n.remove());
+}
+
+document.getElementById("btn-again").addEventListener("click", () => {
+  stopParty();
+  resetNoButton();
+  step = 0;
+  rating = 10;
+  show("home");
 });
 
-// ─── Init copy ───────────────────────────────────────────────
-function initCopy() {
-  document.title = CONFIG.texts.pageTitle;
-  startLead.textContent = withName(CONFIG.texts.startLead);
-  btnStart.textContent = CONFIG.texts.startButton;
-  questionLead.textContent = CONFIG.texts.questionLead;
-  btnYes.textContent = CONFIG.texts.yesButton;
-  btnNo.textContent = CONFIG.texts.noButton;
-  noUnavailable.textContent = CONFIG.texts.noUnavailable;
-  btnFineYes.textContent = CONFIG.texts.fineYesButton;
-  titleEl.textContent = CONFIG.texts.celebrationTitle;
-  subEl.textContent = CONFIG.texts.celebrationSub;
-}
-
-applyTheme();
-initCopy();
+window.addEventListener("resize", () => {
+  if (confettiOn) resizeCanvas();
+});

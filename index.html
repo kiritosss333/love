@@ -3,63 +3,411 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#faf6f3">
-  <title>Для тебя</title>
+  <meta name="theme-color" content="#6ea8ff">
+  <title>Ярик, ты мой друг?</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky: #d8ecff;
+      --sky-mid: #7eb6ff;
+      --blue: #4c8dff;
+      --deep: #4a5fd9;
+      --purple: #6b5ce7;
+      --ink: #1d2a5c;
+      --white: #ffffff;
+      --glow: rgba(130, 190, 255, 0.75);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      min-height: 100dvh;
+      font-family: "Nunito", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(165deg, #cfe8ff 0%, #7eb6ff 38%, #5478f0 72%, #5b4fd4 100%);
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    .blobs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+      opacity: 0.45;
+      animation: drift 16s ease-in-out infinite;
+    }
+
+    .blob:nth-child(1) {
+      width: 280px; height: 280px; left: -60px; top: -40px;
+      background: #b9e0ff;
+    }
+    .blob:nth-child(2) {
+      width: 340px; height: 340px; right: -80px; top: 20%;
+      background: #8a7cff;
+      animation-delay: -5s;
+    }
+    .blob:nth-child(3) {
+      width: 220px; height: 220px; left: 20%; bottom: -50px;
+      background: #6eb8ff;
+      animation-delay: -9s;
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(18px, -24px) scale(1.08); }
+    }
+
+    .screen {
+      position: relative;
+      z-index: 1;
+      width: min(560px, calc(100% - 28px));
+      max-height: calc(100dvh - 28px);
+      overflow: auto;
+      background: rgba(255, 255, 255, 0.28);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 28px;
+      padding: 28px 22px 32px;
+      box-shadow: 0 24px 60px rgba(50, 70, 160, 0.22);
+      text-align: center;
+    }
+
+    /* Big card on the home screen so the runaway "Нет" button always stays inside */
+    .screen.is-home {
+      width: min(760px, calc(100vw - 28px));
+      height: min(780px, calc(100dvh - 28px));
+      max-height: none;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .screen.is-home .view.is-on { width: 100%; }
+
+    .view[hidden] { display: none !important; }
+    .view.is-on {
+      display: block;
+      animation: rise 0.45s var(--ease);
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar-wrap {
+      width: 168px;
+      height: 168px;
+      margin: 8px auto 22px;
+      border-radius: 50%;
+      padding: 6px;
+      background: linear-gradient(145deg, #ffffff, #8ec4ff, #6b6ef0);
+      box-shadow:
+        0 0 0 8px rgba(255, 255, 255, 0.25),
+        0 0 36px var(--glow);
+      animation: pulse-glow 2.8s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 8px rgba(255,255,255,0.22), 0 0 28px var(--glow); }
+      50% { box-shadow: 0 0 0 10px rgba(255,255,255,0.32), 0 0 48px rgba(150,170,255,0.9); }
+    }
+
+    /* Replace photo.jpg with your photo of you and Yarik */
+    .avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      background:
+        radial-gradient(circle at 35% 30%, #ffffff 0%, #c9e4ff 40%, #7aa8ff 100%);
+    }
+
+    .avatar-fallback {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 54px;
+      background: linear-gradient(180deg, #e7f4ff, #9fc4ff);
+    }
+
+    h1, h2 {
+      margin: 0 0 8px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    h1 { font-size: clamp(1.7rem, 6vw, 2.15rem); }
+    h2 { font-size: clamp(1.35rem, 5vw, 1.7rem); }
+
+    .hint {
+      margin: 0 0 22px;
+      opacity: 0.78;
+      font-weight: 500;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      min-height: 56px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      padding: 13px 26px;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(180deg, #6ea8ff, #4f72ef);
+      box-shadow: 0 8px 22px rgba(60, 90, 200, 0.32);
+      transition: transform 0.2s var(--ease), filter 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+    .btn:active { transform: scale(0.96); }
+
+    .btn--yes { min-width: 120px; font-size: 1.15rem; }
+
+    .btn--no {
+      background: linear-gradient(180deg, #a8c4ff, #7b8fd6);
+      min-width: 110px;
+    }
+
+    .btn--no.is-fixed {
+      animation: wobble 0.5s ease;
+    }
+
+    @keyframes wobble {
+      0%, 100% { transform: rotate(0); }
+      25% { transform: rotate(-6deg); }
+      75% { transform: rotate(6deg); }
+    }
+
+    .btn-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .choice {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink);
+      box-shadow: 0 6px 16px rgba(50, 80, 180, 0.12);
+    }
+
+    .choice:hover { background: #fff; }
+
+    .choice--soft {
+      background: linear-gradient(180deg, #ffffff, #dcecff);
+    }
+
+    .custom {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .custom input {
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font: inherit;
+      font-weight: 700;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.8);
+      outline: none;
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+    }
+
+    .custom input:focus {
+      box-shadow: inset 0 0 0 2px #6ea8ff;
+    }
+
+    .scale {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .scale .btn {
+      padding: 12px 0;
+      min-width: 0;
+    }
+
+    .progress {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: rgba(40, 60, 140, 0.22);
+    }
+
+    .dot.is-on {
+      width: 22px;
+      background: linear-gradient(90deg, #6ea8ff, #5b4fd4);
+    }
+
+    .final-hearts {
+      font-size: 2rem;
+      margin: 8px 0 18px;
+    }
+
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .heart-float {
+      position: fixed;
+      z-index: 4;
+      pointer-events: none;
+      font-size: 22px;
+      animation: float-up 3.6s linear forwards;
+    }
+
+    @keyframes float-up {
+      0% { transform: translateY(0) scale(1); opacity: 0.95; }
+      100% { transform: translateY(-110vh) scale(1.3); opacity: 0; }
+    }
+
+    .screamer {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      background: #000;
+    }
+
+    .screamer.is-on { display: grid; }
+
+    .screamer svg {
+      width: min(92vw, 620px);
+      height: auto;
+      animation: jump 0.12s steps(2) infinite;
+    }
+
+    @keyframes jump {
+      from { transform: scale(1) translate(0, 0); }
+      to { transform: scale(1.08) translate(-8px, 6px); }
+    }
+
+    @media (max-width: 420px) {
+      .screen { padding: 22px 16px 26px; border-radius: 22px; }
+      .avatar-wrap { width: 140px; height: 140px; }
+      .scale { grid-template-columns: repeat(5, 1fr); }
+    }
+  </style>
 </head>
 <body>
-  <div class="ambient" aria-hidden="true">
-    <span class="ambient-dot"></span>
-    <span class="ambient-dot"></span>
-    <span class="ambient-dot"></span>
-    <span class="ambient-dot"></span>
-    <span class="ambient-dot"></span>
+  <div class="blobs" aria-hidden="true">
+    <div class="blob"></div>
+    <div class="blob"></div>
+    <div class="blob"></div>
   </div>
 
-  <main id="app">
-    <!-- Scene 1 -->
-    <section class="scene scene--active" data-scene="start" aria-label="Начало">
-      <div class="scene-inner fade-in">
-        <p class="lead" id="start-lead">Ветулик, я хочу тебя кое о чём спросить…</p>
-        <button type="button" class="btn btn--primary" id="btn-start">Я тебя люблю</button>
+  <main class="screen is-home">
+    <section class="view is-on" id="view-home" aria-label="Главный экран">
+      <div class="avatar-wrap">
+        <img
+          class="avatar"
+          src="photo.jpg"
+          alt="Фото нас с Яриком"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"
+        >
+        <div class="avatar-fallback" style="display:none;" aria-hidden="true">💙</div>
+      </div>
+      <h1>Ярик, ты мой друг?</h1>
+      <p class="hint">Выбери честный ответ</p>
+      <div class="actions" id="home-actions">
+        <button type="button" class="btn btn--yes" id="btn-yes">Да</button>
+        <button type="button" class="btn btn--no" id="btn-no">Нет</button>
       </div>
     </section>
 
-    <!-- Scene 2 -->
-    <section class="scene" data-scene="question" aria-label="Вопрос">
-      <div class="scene-inner">
-        <p class="lead fade-in" id="question-lead">А ты меня?</p>
-        <p class="subhint fade-in" id="question-hint" hidden></p>
-        <div class="btn-row" id="question-buttons">
-          <button type="button" class="btn btn--primary" id="btn-yes">Да</button>
-          <button type="button" class="btn btn--ghost" id="btn-no">Нет</button>
-        </div>
-        <p class="fallback-msg fade-in" id="no-unavailable" hidden>
-          Похоже, вариант «Нет» сегодня недоступен.
-        </p>
-        <button type="button" class="btn btn--primary fade-in" id="btn-fine-yes" hidden>
-          Ладно… тогда да ❤️
-        </button>
-      </div>
+    <section class="view" id="view-quiz" aria-label="Опрос" hidden>
+      <div class="progress" id="progress"></div>
+      <h2 id="q-title"></h2>
+      <div id="q-body"></div>
     </section>
 
-    <!-- Scene 3 — Heart celebration -->
-    <section class="scene" data-scene="celebration" aria-label="Финал">
-      <div class="celebration-backdrop" id="celebration-backdrop"></div>
-      <canvas class="heart-canvas" id="heart-canvas" aria-hidden="true"></canvas>
-      <div class="heart-css-wrap" id="heart-css-wrap" aria-hidden="true">
-        <div class="heart-glow"></div>
-        <div class="heart-shape"></div>
+    <section class="view" id="view-final" aria-label="Финал" hidden>
+      <div class="avatar-wrap" style="width:120px;height:120px;">
+        <img class="avatar" src="photo.jpg" alt="" onerror="this.style.display='none';">
       </div>
-      <div class="scene-inner celebration-copy">
-        <p class="lead celebration-text" id="celebration-title" hidden>Я так и знал ❤️</p>
-        <p class="body-text celebration-text" id="celebration-sub" hidden>Ты только что сделала меня очень счастливым.</p>
-      </div>
+      <h1>Спасибо, Ярик! Ты самый лучший 💙</h1>
+      <p class="final-hearts">✨ 💙 ✨</p>
+      <p class="hint">Мне очень повезло, что ты есть</p>
+      <button type="button" class="btn" id="btn-again">Пройти ещё раз</button>
     </section>
   </main>
+
+  <canvas id="confetti"></canvas>
+
+  <div class="screamer" id="screamer" aria-hidden="true">
+    <svg viewBox="0 0 400 480" role="img" aria-label="Страшная картинка">
+      <defs>
+        <radialGradient id="g" cx="50%" cy="40%" r="70%">
+          <stop offset="0%" stop-color="#3a0000"/>
+          <stop offset="100%" stop-color="#000"/>
+        </radialGradient>
+      </defs>
+      <rect width="400" height="480" fill="url(#g)"/>
+      <ellipse cx="200" cy="250" rx="150" ry="190" fill="#cfc8b8"/>
+      <ellipse cx="200" cy="270" rx="70" ry="90" fill="#b9b09c"/>
+      <ellipse cx="125" cy="210" rx="42" ry="58" fill="#050505"/>
+      <ellipse cx="275" cy="210" rx="42" ry="58" fill="#050505"/>
+      <ellipse cx="135" cy="198" rx="10" ry="14" fill="#ff2a2a"/>
+      <ellipse cx="285" cy="198" rx="10" ry="14" fill="#ff2a2a"/>
+      <path d="M95 330 Q200 470 305 330 Q200 400 95 330" fill="#1a0000"/>
+      <path d="M120 350 Q200 430 280 350" fill="none" stroke="#8a0000" stroke-width="8"/>
+      <g fill="#fff">
+        <rect x="132" y="352" width="12" height="28" rx="2"/>
+        <rect x="152" y="360" width="12" height="30" rx="2"/>
+        <rect x="172" y="364" width="12" height="32" rx="2"/>
+        <rect x="216" y="364" width="12" height="32" rx="2"/>
+        <rect x="236" y="360" width="12" height="30" rx="2"/>
+        <rect x="256" y="352" width="12" height="28" rx="2"/>
+      </g>
+    </svg>
+  </div>
 
   <script src="script.js"></script>
 </body>
